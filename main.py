@@ -10,8 +10,8 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-def main(limit):
-    logging.info("Starting the Scytale PR intergration pipeline...") 
+def main(limit, start_date=None, end_date=None, author=None, label=None):
+    logging.info("Starting the Scytale PR integration pipeline...") 
 
     # file paths
     raw_data_path = os.path.join("data", "raw_pr_data.json")
@@ -20,7 +20,13 @@ def main(limit):
     # Phase 1: Extract
     try:
         logging.info("--- Phase 1: Data Extraction ---")
-        extract_prs_data(limit=limit)
+        extract_prs_data(
+            limit=limit,
+            start_date=start_date,
+            end_date=end_date,
+            author=author,
+            label=label
+        )
     except Exception as e:
         logging.error(f"Extraction phase failed: {e}")
         return # Halt execution if extraction fails
@@ -43,6 +49,16 @@ if __name__ == "__main__":
         default=10, 
         help="Limit the number of merged PRs to process (default: 10)"
     )
+    parser.add_argument("--start-date", type=str, help="Start date in YYYY-MM-DD format (e.g., 2024-01-01)")
+    parser.add_argument("--end-date", type=str, help="End date in YYYY-MM-DD format (e.g., 2024-01-31)")
+    parser.add_argument("--author", type=str, help="Filter PRs by GitHub username")
+    parser.add_argument("--label", type=str, help="Filter PRs by label (e.g., 'bug')")
     args = parser.parse_args()
     
-    main(limit=args.limit)
+    main(
+        limit=args.limit,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        author=args.author,
+        label=args.label
+    )
