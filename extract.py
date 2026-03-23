@@ -45,6 +45,7 @@ def extract_prs_data(limit=10, start_date=None, end_date=None, author=None, labe
     """
     Fetches merged PRs using the highly efficient GitHub Search API,
     then retrieves their associated reviews and checks.
+    Also paginates if filtered results go to the next page(s)
     """
     logging.info(f"Constructing search query for {ORG}/{REPO}...")
     
@@ -69,12 +70,29 @@ def extract_prs_data(limit=10, start_date=None, end_date=None, author=None, labe
     logging.info(f"Executing Search API query: {query_string}")
 
     search_url = f"{BASE_URL}/search/issues"
-    search_params = {"q": query_string, "per_page": limit}
+    # Cap per_page at 100 as per GitHub API strict limits
+    search_params = {"q": query_string, "per_page": min(limit, 100)}
 
-    # 2. Execute the Search
-    response = requests.get(search_url, headers=HEADERS, params=search_params)
-    response.raise_for_status()
-    search_results = response.json().get("items", [])
+    search_results = []
+    current_url = search_url
+    current_params = search_params
+
+    # 2. Execute the Search with Pagination
+    while current_url and len(search_results) < limit:
+        response = requests.get(current_url, headers=HEADERS, params=current_params)
+        response.raise_for_status()
+        
+        page_items = response.json().get("items", [])
+        search_results.extend(page_items)
+        
+        # Trim if we slightly overshot the limit on the final page
+        if len(search_results) >= limit:
+            search_results = search_results[:limit]
+            break
+            
+        # Get the next page URL
+        current_url = response.links.get('next', {}).get('url')
+        current_params = None
 
     logging.info(f"Search returned {len(search_results)} matching PRs. Fetching details...")
 
